@@ -1,0 +1,291 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+```{r}
+#install.packages("ggcorrplot")
+#install.packages("GGally")
+#install.packages("goftest")
+#source("https://raw.githubusercontent.com/briatte/ggcorr/master/ggcorr.R")
+library(GGally)
+library(goftest)
+library(dplyr)
+library(ggplot2)
+library(ggcorrplot)
+```
+Análise de Modelo - Preço de Venda e Aluguel de imóvel em diversos estados
+```{r}
+#Importando a base de dados
+dados=read.csv("/home/gislenne/Documentos/Mineração/sao-paulo-properties-april-2019.csv", header=TRUE, sep=",",  dec = ".") 
+
+#Verificação dos dados
+head(dados)
+dim(dados)
+str(dados)
+summary(dados)
+
+#Alterando para português o nome dado as colunas
+nomes <- c("Preço","Condominio","Tamanho","Quarto", "Banheiro", "Suítes","Estacionamento","Elevador","Finalizada","Piscina", "Novo","Bairro","TipoNegociacao","TipoPropriedade", "Latitude","Longitude")
+names(dados)<-nomes
+dados
+summary(dados)
+```
+Verificação de valores faltantes - NAs
+```{r}
+#valores faltantes NAs
+dados[!complete.cases(dados),]
+#O conjunto de dados não apresenta valores vazios!
+```
+Exploração dos dados
+```{r}
+#Preço
+summary(dados$Preço)
+boxplot(dados$Preço)
+hist(dados$Preço)
+boxplot(dados$Preço,outline = F)
+```
+
+```{r}
+#Condominio
+summary(dados$Condominio)
+boxplot(dados$Condominio)
+hist(dados$Condominio)
+boxplot(dados$Condominio,outline = F)
+```
+
+```{r}
+#Tamanho
+summary(dados$Tamanho)
+boxplot(dados$Tamanho)
+hist(dados$Tamanho)
+boxplot(dados$Tamanho,outline = F)
+```
+
+```{r}
+#Quarto
+summary(dados$Quarto)
+boxplot(dados$Quarto)
+hist(dados$Quarto)
+boxplot(dados$Quarto,outline = F)
+```
+
+```{r}
+#Banheiro
+summary(dados$Banheiro)
+boxplot(dados$Banheiro)
+hist(dados$Banheiro)
+boxplot(dados$Banheiro,outline = F)
+```
+
+```{r}
+#Suites
+summary(dados$Suítes)
+boxplot(dados$Suítes)
+hist(dados$Suítes)
+boxplot(dados$Suítes,outline = F)
+```
+
+```{r}
+#Estacionamento
+summary(dados$Estacionamento)
+boxplot(dados$Estacionamento)
+hist(dados$Estacionamento)
+boxplot(dados$Estacionamento ,outline = F)
+```
+
+```{r}
+#Finalizado
+prop.table(table(dados$Finalizada))
+
+#84% são de apartamentos não finalizados!
+```
+
+```{r}
+#Piscina
+prop.table(table(dados$Piscina))
+
+#48% não possui piscina!
+```
+
+```{r}
+#Novo
+prop.table(table(dados$Novo))
+#98% dos apartamentos são novos
+```
+
+```{r}
+#Bairro
+summary(dados$Bairro)
+unique(dados$Bairro)
+counts = table(dados$Bairro)
+counts
+barplot(counts, main="Bairro", xlab="Bairro")
+```
+
+```{r}
+#Tipo de Negociação
+prop.table(table(dados$TipoNegociacao))
+#52% tratam-se de informações de aluguel enquanto 47% tratam-se de venda.
+```
+
+```{r}
+#Tipo de Propriedade
+prop.table(table(dados$TipoPropriedade))
+#Todos são apartamentos!
+```
+Análise Exploratória
+```{r}
+#Separando dados de aluguel e venda
+dados_aluguel=filter(dados,TipoNegociacao=='rent')
+dados_venda=filter(dados,TipoNegociacao=='sale')
+      
+#Medidas resumos por tipo de negociação 
+tapply(dados$Preço, dados$TipoNegociacao, summary)
+
+#O preço médio do aluguel é de (min) R$480,00  e (max) R$50.000,00
+#Enquanto o preço médio de venda é de (min) R$380.000,00 e (max) R$10.000.000,00.
+```
+-> Verficar a faixa de preço por bairro
+```{r}
+#Para Aluguel
+preço_medio_aluguel=tapply(dados_aluguel$Preço, dados_aluguel$Bairro, mean)
+preço_medio_aluguel
+plot(preço_medio_aluguel)
+hist(preço_medio_aluguel)
+
+  #Em relação ao aluguel, os preços se concentram na faixa de 0 a 4.000 reais
+
+#Para Venda
+preço_medio_venda=tapply(dados_venda$Preço, dados_venda$Bairro, mean)
+preço_medio_venda
+plot(preço_medio_venda)
+
+  #Em relação a venda, os preços se concentram na faixa de 0 a 10.000.000,00 reais
+
+#Preço médio Aluguel/Venda
+preço_medio=data.frame(preço_medio_aluguel, preço_medio_venda)
+colnames(preço_medio)<-c("Preço Médio de Aluguel", "Preço Médio de Venda")
+preço_medio
+```
+Análise Gráfica - Aluguel
+  Os gráficos abaixo mostram a variação do preço médio de Aluguel de acordo com as quantidades de quartos, banheiros, suítes e estacionamento além da mesma variação de acordo com a presença ou ausência de elevador e piscina.
+```{r} 
+#Quarto
+    ggplot(data=dados_aluguel, aes(x=Quarto, y=mean(Preço))) +  geom_bar(stat="identity", width=0.5)+theme_bw() + ggtitle("Distribuição de preço médio de aluguel por quantidade de quartos") + theme(plot.title = element_text(hjust = 0.5), legend.position = "none", axis.text.y = element_text(size=10), axis.title.y = element_text(size=10)) + geom_col(colour = "lightblue")
+
+#Banheiro
+ggplot(data=dados_aluguel, aes(x=Banheiro, y=mean(Preço))) +  geom_bar(stat="identity", width=0.5)+theme_bw() + ggtitle("Distribuição de preço médio de aluguel de venda por quantidade de banheiros")+theme(plot.title = element_text(hjust = 0.5), legend.position = "none", axis.text.y = element_text(size=10), axis.title.y = element_text(size=10)) + geom_col(colour = "lightblue")
+
+#Suítes
+ggplot(data=dados_aluguel, aes(x=Suítes, y=mean(Preço))) + geom_bar(stat="identity", width=0.5)+theme_bw() + ggtitle("Distribuição de preço médio de aluguel por quantidade de suítes")+theme(plot.title = element_text(hjust = 0.5), legend.position = "none", axis.text.y = element_text(size=10), axis.title.y = element_text(size=10)) + geom_col(colour = "lightblue")
+
+#Estacionamento
+ggplot(data=dados_aluguel, aes(x=Estacionamento, y=mean(Preço))) + geom_bar(stat="identity", width=0.5)+theme_bw() + ggtitle("Distribuição de preço médio de aluguel por quantidade de estacionamentos")+theme(plot.title = element_text(hjust = 0.5), legend.position = "none", axis.text.y = element_text(size=10), axis.title.y = element_text(size=10)) + geom_col(colour = "lightblue")
+
+#Elevador
+ggplot(data=dados_aluguel, aes(x=Elevador, y=mean(Preço))) + geom_bar(stat="identity", width=0.5)+theme_bw() + ggtitle("Distribuição de preço médio de aluguel de acordo com a presença de elevador")+theme(plot.title = element_text(hjust = 0.5), legend.position = "none", axis.text.y = element_text(size=10), axis.title.y = element_text(size=10)) + geom_col(colour = "lightblue")
+
+#Piscina
+ggplot(data=dados_aluguel, aes(x=Piscina, y=mean(Preço))) + geom_bar(stat="identity", width=0.5)+theme_bw() + ggtitle("Distribuição de preço médio de aluguel de acordo com a presença de piscina")+theme(plot.title = element_text(hjust = 0.5), legend.position = "none", axis.text.y = element_text(size=10), axis.title.y = element_text(size=10)) + geom_col(colour = "lightblue")
+
+      #  --> Com excessão da piscina, podemos ver que os demais itens são bem determinantes para definição dos valores de aluguel dos apartamentos.
+  
+```
+Análise Gráfica - Venda
+  Os gráficos abaixo mostram a variação do preço médio de venda de acordo com as quantidades de quartos, banheiros, suítes e estacionamento além da mesma variação de acordo com a presença ou ausência de elevador e piscina.
+```{r}
+#Quarto
+ggplot(data=dados_venda, aes(x=Quarto, y=mean(Preço))) + geom_bar(stat="identity", width=0.5)+theme_bw() + ggtitle("Distribuição de preço de venda por quantidade de quartos")+theme(plot.title = element_text(hjust = 0.5), legend.position = "none", axis.text.y = element_text(size=10), axis.title.y = element_text(size=10)) + geom_col(colour = "lightgreen")
+
+#Banheiro
+ggplot(data=dados_venda, aes(x=Banheiro, y=mean(Preço))) + geom_bar(stat="identity", width=0.5)+theme_bw() + ggtitle("Distribuição de preço de venda por quantidade de banheiros")+theme(plot.title = element_text(hjust = 0.5), legend.position = "none", axis.text.y = element_text(size=10), axis.title.y = element_text(size=10)) + geom_col(colour = "lightgreen")
+
+#Suítes
+ggplot(data=dados_venda, aes(x=Suítes, y=mean(Preço))) + geom_bar(stat="identity", width=0.5)+theme_bw()+ ggtitle("Distribuição de preço de venda por quantidade de suítes")+theme(plot.title = element_text(hjust = 0.5), legend.position = "none", axis.text.y = element_text(size=10), axis.title.y = element_text(size=10)) + geom_col(colour = "lightgreen")
+
+#Estacionamento
+ggplot(data=dados_venda, aes(x=Estacionamento, y=mean(Preço))) + geom_bar(stat="identity", width=0.5)+theme_bw() + ggtitle("Distribuição de preço de venda por quantidade de estacionamentos")+theme(plot.title = element_text(hjust = 0.5), legend.position = "none", axis.text.y = element_text(size=10), axis.title.y = element_text(size=10)) + geom_col(colour = "lightgreen")
+
+#Elevador
+ggplot(data=dados_venda, aes(x=Elevador, y=mean(Preço))) + geom_bar(stat="identity", width=0.5)+theme_bw() + ggtitle("Distribuição de preço de venda de acordo com a presença de elevador")+theme(plot.title = element_text(hjust = 0.5), legend.position = "none", axis.text.y = element_text(size=10), axis.title.y = element_text(size=10)) + geom_col(colour = "lightgreen")
+
+#Piscina
+ggplot(data=dados_venda, aes(x=Piscina, y=mean(Preço))) + geom_bar(stat="identity", width=0.5)+theme_bw() + ggtitle("Distribuição de preço de venda de acordo com a presença de piscina")+theme(plot.title = element_text(hjust = 0.5), legend.position = "none", axis.text.y = element_text(size=10), axis.title.y = element_text(size=10)) + geom_col(colour = "lightgreen")
+
+#--> Os resultados são bem determinantes para definição dos valores de venda dos apartamentos. Por não apresentar uma diferença tão alta...
+```
+Gráfico de Distribuição de Preço de acordo com o tamanho m².
+```{r}
+#Aluguel
+ggplot(data=dados_venda, aes(x=Tamanho, y=Preço)) + geom_point(stat="identity", width=0.5, colour = "lightblue")+theme_bw()+ ggtitle("Distribuição de preço de aluguel por tamanho")+theme(plot.title = element_text(hjust = 0.5),legend.position = "none", axis.text.y = element_text(size=10), axis.title.y = element_text(size=10))
+
+#Venda
+ggplot(data=dados_venda, aes(x=Tamanho, y=Preço)) + geom_point(stat="identity", width=0.5, colour = "lightgreen")+theme_bw()+ ggtitle("Distribuição de preço de venda por tamanho")+theme(plot.title = element_text(hjust = 0.5),legend.position = "none", axis.text.y = element_text(size=10), axis.title.y = element_text(size=10))
+
+    #  --> Podemos ver que há uma relação crescente entre preço e tamanho do apartamento tanto para aluguel quanto para venda, ou seja, quanto maior o tamanho maior o preço.
+```
+Gráfico de matriz de correlação 
+```{r}
+#Matriz de correlação das caracteristicas dos apartamentos para Alugar
+dados_correlacao_aluguel=dados_aluguel[,1:11]
+dados_correlacao_aluguel
+ggcorr(dados_correlacao_aluguel, label=T)
+
+        #-->Podemos ver que há uma forte relação crescente do preço com o tamanho do apartamento, quantidade de banheiros, quantidade de suítes e quantidade de estacionamentos, além disso é possível ver que quanto maior o preço do condomínio, maior o valor do aluguel.
+  
+#Matriz de correlação das caracteristicas dos apartamentos para Vender
+dados_correlacao_venda=dados_venda[,1:11]
+dados_correlacao_venda
+ggcorr(dados_correlacao_venda, label=T)
+    #--> Podemos ver que há uma relação crescente ainda mais forte do preço com o tamanho do apartamento.
+    #Além disso, é possível notar que o preço aumenta conforme aumenta-se a quantidade de quartos, quantidade de banheiros, quantidade de suítes e quantidade de estacionamentos, e quanto maior o preço do condomínio, maior o valor de venda.
+```
+Modelo Linear Múltiplo para previsão do preço do aluguel de acordo com as características do apartamento.
+```{r}
+#Geramos o modelo usando função lm
+equacao_aluguel = lm( Preço ~ Condominio+Tamanho+Quarto+Banheiro+Suítes+Elevador+Estacionamento+Piscina+Novo, data=dados_aluguel)
+equacao_aluguel
+summary(equacao_aluguel)
+shapiro.test(equacao_aluguel$coefficients)
+cor(dados_aluguel[,2:11])
+#scale foi retirado do Residual standard error (summary)
+step(equacao_aluguel, direction = "both", scale = 2215^2)
+equacao_aluguel = lm( Preço ~ Condominio+Tamanho+Quarto+Banheiro+Suítes+Estacionamento+Piscina+Novo, data=dados_aluguel)
+equacao_aluguel
+summary(equacao_aluguel)
+shapiro.test(equacao_aluguel$coefficients)
+par(mfrow = c(2,2))
+plot(equacao_aluguel, which = c(1:4), pch = 20)
+  #--> É possível ver que a quantidade de suítes, a presença de elevador e fato do apartamento ser novo, não influênciam significativamente no preço de aluguel.
+  #--> A característica que mais aumenta o preço do aluguel é a quantidade de estacionamentos seguidos pela presença de piscina.
+```
+Modelo Linear Múltiplo para previsão do preço de venda de acordo com as características do apartamento.  
+```{r}
+#Geramos o modelo usando função lm
+equacao_venda = lm( Preço ~ Condominio+Tamanho+Quarto+Banheiro+Suítes+Estacionamento+Elevador+Piscina+Novo, data=dados_venda)
+equacao_venda
+summary(equacao_venda)
+cor(dados_venda[,2:11])
+#scale foi retirado do Residual standard error (summary)
+step(equacao_venda, direction = "both", scale = 384700^2)
+  equacao_venda = lm( Preço ~ Condominio+Tamanho+Quarto+Banheiro+Suítes+Estacionamento+Piscina+Novo, data=dados_venda)
+equacao_venda
+summary(equacao_venda)
+shapiro.test(equacao_venda$coefficients)
+par(mfrow = c(2,2))
+plot(equacao_venda, which = c(1:4), pch = 20)
+#--> É possível ver que a quantidade de banheiros, a presença de elevador, não influênciam significativamente no preço de venda   
+#--> A característica que mais aumenta o preço de venda é a quantidade de estacionamentos seguidos pela quantidade de suítes.
+```
+Nuvem de Palavras
+```{r}
+#Nuvem de palavras
+install.packages("wordcloud")
+library(wordcloud)
+bairro_freq=data.frame(counts)
+colnames(bairro_freq)<-c("Bairro", "Frequencia")
+bairro_freq
+wordcloud(words = bairro_freq$Bairro, freq = bairro_freq$Frequencia)
+wordcloud(words = bairro_freq$Bairro, freq = bairro_freq$Frequencia, min.freq = 1, random.order = TRUE, colors=brewer.pal(8,"Dark2"), use.r.layout=TRUE, rot.per= 0.5)
+```
+
